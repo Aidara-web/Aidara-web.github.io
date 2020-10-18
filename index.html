@@ -1,0 +1,1254 @@
+/**
+
+Vertikal! My 8th game!
+
+What else to say...
+
+Khantober Week 3...
+
+Soo yeah...
+
+First program of mine to get first place! :D
+
+ALL LEVELS ARE POSSIBLE. ok thx
+
+Sub Here: 
+https://www.khanacademy.org/computer-programming/wintrestudioscom/6118848658751488
+
+STORY: {
+    You play as a square, in a land with squares, a land of squares.
+    The land was white, and the white was all. Then suddenly, there was orange, and the white did not comprehend it. And so a square was sent forth, a square named Bob, to explore the orange, and map the white.
+}
+
+CREDITS: {
+    pamela(@pamela) - Pad Zero Function
+    jp - His platformer tutorial
+}
+
+**/
+
+
+/*
+
+{
+        title: "",
+        map: [
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+        ],
+    },
+
+*/
+
+
+// A function that takes a number and pads it with
+// zeros if it is not the specified number of digits already.
+var padZero = function(num) {
+    var numDigits = 2;
+	var n = abs(num);
+	var zeros = max(0, numDigits - floor(n).toString().length );
+	var zeroString = pow(10, zeros).toString().substr(1);
+	return zeroString + n;
+};
+
+var hours = 0;
+var minutes = 0;
+var seconds = 0;
+
+var timer;
+
+var runTimer = function() {
+    if(frameCount % 60 === 1) {
+        seconds ++;
+    }
+    
+    if(seconds >= 60) {
+        minutes ++;
+        seconds = 0;
+    }
+    
+    if(minutes >= 60) {
+        hours ++;
+        minutes = 0;
+    }
+    
+    hours = constrain(hours, 0, 99);
+    
+    timer = padZero(hours)+":"+padZero(minutes)+":"+padZero(seconds);
+};
+
+var ORANGE = color(255, 130, 5);
+
+noStroke();
+
+var loadBackground = function() {
+    background(ORANGE);
+    for(var i = 0; i < width/10; i ++) {
+        for(var j = 0; j < height/10; j ++) {
+            fill(255, i % j * 2.5);
+            rect(j * 20, i * 10, 20, 10);
+        }
+    }
+
+    var img = get();
+    return img;
+};
+
+var backgroundImg = loadBackground();
+
+stroke(255);
+
+var collide = function(obj1, obj2) {
+    return  obj1.x - obj2.x < obj2.w &&
+        obj2.x - obj1.x < obj1.w &&
+        obj1.y - obj2.y < obj2.h &&
+        obj2.y - obj1.y < obj1.h;
+};
+
+var blocks = [];
+var blockSize = 25;
+
+var deaths = 0;
+
+var Player;
+
+var loadLevel;
+
+var keys = [];
+
+keyPressed = function() {
+    keys[keyCode] = true;
+};
+
+keyReleased = function() {
+    keys[keyCode] = false;
+};
+
+var particle = function(x, y, a) {
+    this.x = x;
+    this.y = y;
+    this.ang = a + random(-15, 15);
+    var l = random(100, 200);
+    this.life = l;
+    this.l = l;
+    this.s = random(2, 5);
+    this.speed = random(1, 3);
+};
+
+particle.prototype.draw = function() {
+    pushMatrix();
+    translate(this.x, this.y);
+    rotate(this.life);
+    fill(255, this.life);
+    stroke(255, this.life);
+    rect(-this.s/2, -this.s/2, this.s, this.s);
+    popMatrix();
+    
+    this.x += cos(this.ang) * this.speed;
+    this.y += sin(this.ang) * this.speed;
+    this.life --;
+};
+
+var particles = [];
+
+var enemies = [];
+
+var player = function(x, y) {
+    this.x = x;
+    this.y = y;
+    this.prevX = x;
+    this.prevY = y;
+
+    this.w = 20;
+    this.h = 20;
+    this.gravity = 0;
+    this.canJump = false;
+
+};
+
+player.prototype.draw = function() {
+        fill(255);
+        if(keys[LEFT]) {
+            rect(this.x, this.y, this.w, this.h, 2, 0, 0, 0);
+        } else if(keys[RIGHT]) {
+            rect(this.x, this.y, this.w, this.h, 0, 2, 0, 0);
+        } else {
+            rect(this.x, this.y, this.w, this.h);
+        }
+};
+player.prototype.update= function() {
+        this.prevX = this.x;
+        this.prevY = this.y;
+        
+        this.y += this.gravity;
+        this.gravity += 0.18;
+
+        for(var i in enemies) {
+            if(collide(this, enemies[i])) {
+                loadLevel();
+                deaths ++;
+            }
+        }
+
+        for(var i in blocks) {
+            
+            if(collide(this, blocks[i]) && blocks[i].type === 'lava') {
+                loadLevel();
+                deaths ++;
+            }
+
+            if(collide(this, blocks[i])) {
+                
+                this.gravity = 0;
+                
+                if(this.prevY < blocks[i].prevY) {
+                    this.canJump = true;
+                    
+                    if(blocks[i].type === "trick") {
+                        blocks[i].gravity += 0.1;
+                    }
+                }
+                
+                this.y = (this.prevY < blocks[i].prevY) ? blocks[i].y - this.h : blocks[i].y + blockSize;
+
+            }
+        }
+        
+        if(keys[LEFT]) {
+            this.x -= 3;
+        }
+        if(keys[RIGHT]) {
+            this.x += 3;
+        }
+        
+        for(var i in blocks) {
+            if(collide(this, blocks[i]) && blocks[i].type === 'lava') {
+                loadLevel();
+            }
+            if(collide(this, blocks[i])) {
+                this.x = (this.prevX < blocks[i].prevX) ? blocks[i].x - this.w : blocks[i].x + blockSize;
+            }
+        }
+
+        if(keys[UP] && this.canJump) {
+            this.gravity = -7;
+        }
+        this.canJump = false;
+};
+
+var enemy = function(x, y) {
+    this.x = x;
+    this.y = y;
+    this.prevX = x;
+    this.prevY = y;
+
+    var s = floor(random(15, 20));
+
+    this.w = s;
+    this.h = s;
+    this.gravity = 0;
+    this.canJump = false;
+    
+    this.speed = random(2, 3);
+    
+    this.dead = false;
+    
+    this.movingLeft = false;
+};
+
+enemy.prototype.draw = function() {
+    fill(255, 245, 245);
+    rect(this.x, this.y, this.w, this.h);
+};
+enemy.prototype.update= function() {
+    this.prevX = this.x;
+    this.prevY = this.y;
+        
+    this.y += this.gravity;
+    this.gravity += 0.18;
+
+    for(var i in blocks) {
+        
+        if(collide(this, blocks[i]) && blocks[i].type === 'lava') {
+            this.dead = true;
+        }
+
+        if(collide(this, blocks[i])) {
+                
+            this.gravity = 0;
+                
+            if(this.prevY < blocks[i].prevY) {
+                this.canJump = true;
+                    
+                if(blocks[i].type === "trick") {
+                    blocks[i].gravity += 0.1;
+                }
+            }
+                
+            this.y = (this.prevY < blocks[i].prevY) ? blocks[i].y - this.h : blocks[i].y + blockSize;
+
+            }
+        }
+        
+        if(dist(this.x, this.y, Player.x, Player.y) < 100) {
+            if(Player.x < this.x) {
+                this.x -= this.speed;
+            }
+            if(Player.x > this.x) {
+                this.x += this.speed;
+            }
+        } else {
+            if(this.movingLeft) {
+                this.x -= this.speed;
+            } else {
+                this.x += this.speed;
+            }
+        }
+        
+        for(var i in blocks) {
+            if(collide(this, blocks[i]) && blocks[i].type === 'lava') {
+                loadLevel();
+            }
+            if(collide(this, blocks[i])) {
+                this.x = (this.prevX < blocks[i].prevX) ? blocks[i].x - this.w : blocks[i].x + blockSize;
+                this.movingLeft = !this.movingLeft;
+            }
+        }
+        
+        if(this.x <= 1) {
+            this.movingLeft = false;
+        }
+        if(this.x > width - this.w) {
+            this.movingLeft = true;
+        }
+        
+        if(Player.y < this.y && this.canJump && dist(this.x, this.y, Player.x, Player.y) < 100) {
+            this.gravity = -7;
+        }
+        this.canJump = false;
+};
+
+Player = new player(0, 0);
+
+var block = function(x, y, type) {
+    this.x = x;
+    this.y = y;
+    this.prevX = this.x;
+    this.prevY = this.y;
+    
+    this.type = type || "normal";
+    
+    this.w = blockSize;
+    this.h = blockSize;
+    
+    this.gravity = 0;
+};
+
+block.prototype.draw = function() {
+    this.prevX = this.x;
+    this.prevY = this.y;
+    
+    if(this.gravity > 0) {
+        this.gravity += 0.3;
+        this.y += this.gravity;
+    }
+    
+    if(this.type === "normal") {
+        fill(255);
+        rect(this.x, this.y, this.w, this.h);
+    } else if(this.type === "lava") {
+        fill(255, 255  + sin(frameCount) * 25, 255  + sin(frameCount) * 25, 200 + cos(frameCount) * 55);
+        stroke(255, 255  + sin(frameCount) * 25, 255  + sin(frameCount) * 25, 200 + cos(frameCount) * 55);
+        rect(this.x, this.y, this.w, this.h);        
+        
+        if(frameCount % 5 === 1) {
+            particles.push(new particle(this.x + random(blockSize), this.y, -90));
+        }
+        
+    } else if(this.type === "trick") {
+        fill(250);
+        rect(this.x, this.y, this.w, this.h);        
+    }
+    
+    stroke(255);
+};
+
+var levels = [
+    {
+        title: "Genesis",
+        map: [
+            "               p    ",
+            "bbb  bbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbb         ",
+            "       bbbbbb       ",
+            "                    ",
+            "           bbbbbbbbb",
+            "       bbbbbbbbbbbbb",
+            "                    ",
+            "                    ",
+            "bbbbbbbbbbbbbbb   bb",
+            "                    ",
+            "       bbbbbbbbbbbbb",
+            "   bbbbbbbbbbbbb    ",
+            "                    ",
+            "bbbbbb              ",
+            "bbbbbbbb            ",
+            "bbbbbbbbbbb         ",
+            "                    ",
+            "       bbbbbbbbbbbbb",
+            "    bbbbbbbbbbbbbbbb",
+            "   bbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbb             ",
+            "bbbbbbbbbbb         ",
+            "bbbbbbbbbbbbb       ",
+            "               bbbbb",
+            " @          bbbbbbbb",
+            "bbbbbbbbbbbbbbbbbbbb",
+            "bbbbbbbbbbbbbbbbbbbb",
+        ],
+        messages: [
+            ["Welcome to Vertikal.", 300, 0],    
+            ["I will be your guide throughout\n this escapade of yours.", 105, 220],
+            ["Who am I, you ask?", 300, 400],
+            ["Don't ask. It's a long story.", 300, 580],
+            ["<-- That's the portal.", 150, 680],            
+        ],
+    },    
+    {
+        title: "An Introduction to Lava",
+        map: [
+            "                    ",
+            "                    ",
+            "   p                ",
+            "                    ",
+            "bbbbbllllbbbbbbbbbb ",
+            "bbbbbbbbbbbbbbbbbb  ",
+            "                   b",
+            "                  bb",
+            "                 bbb",
+            "               bbbbb",
+            "             bbbbbbb",
+            "           bbbbbbbbb",
+            "         bbbbbbbbbbb",
+            "       bbbbbbbbbbbbb",
+            "     bbbbbbbbbbbbbbb",
+            "   bbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbb                 ",
+            "bbbb                ",
+            "bbbbb               ",
+            "bbbbbbb             ",
+            "bbbbbbbb            ",
+            "bbbbbbbbb           ",
+            "bbbbbbbbbb       bbb",
+            "               bbbbb",
+            "             bbbbbbb",
+            "            bbbbbbbb",
+            "@         bbbbbbbbbb",
+            "bbbbbbbbbbbbbbbbbbbb",
+            "bbbbbbbbbbbbbbbbbbbb",
+        ],
+        messages: [
+            ["Oh look, lava.\nProbably should touch it,\ndon't you think?", 175, 50],    
+            
+        ],
+    },
+    {
+        title: "Illusions",
+        map: [
+            "               p    ",
+            "    bbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbb                ",
+            "bbbbbb              ",
+            "bbbbbbbb            ",
+            "           ddddddddd",
+            " @                  ",
+            "bbbbbbbb            ",
+            "bbbbbbbbddd         ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+        ],
+        messages: [
+            ["Things are never as they seem.", 200, 0],
+        ],
+    },
+    {
+        title: "Dilema",
+        map: [
+            "p                  b",
+            "b                 bb",
+            "bb               bbb",
+            "bbb             bbbb",
+            "bbbbb          bbbbb",
+            "bbbbb         bbbbbb",
+            "bbbbb        bbbbbbb",
+            "bbbbb        bbbbbbb",
+            "bbbbbb       bbbbbbbb",
+            "bbbbbb       bbbbbbb",
+            "bb                bb",
+            "bb  bbbbbbbbbbbb  bb",
+            "b   b          b  bb",
+            "b   b          b  bb",  
+            "b   b          b  bb",  
+            "b   b          b  bb",  
+            "b   b          b  bb",  
+            "b   b          b    ",            
+            "bdddb          bbbb ",
+            "bllllb         bllb ",
+            "bbbbbb         bbbb ",
+            "                   ",
+            "                   b",
+            "                  bb",
+            "                 bbb",
+            "           bbbbbbbbb",
+            "         bbbbbbbbbbb",
+            "       bbbbbbbbbbbbb",
+            "   bbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbb         ",
+            "bbbbbbbbbbbbbbb     ",
+            "bbbbbbbbbbbbbbbb    ",
+            "bbbbbbbbbbbbbbbbbb @",
+            "bbbbbbbbbbbbbbbbbbbb",
+        ],
+        messages: [
+            ["Oh dear, A dilema.", 250, 200],
+        ],
+    },     
+    {
+        title: "Zig-Zag Watch Out",
+        map: [
+            "bbbbbbbbbbbbbbbbbbbb",
+            "                   p",
+            "  bbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbbbbbb ",
+            "                    ",
+            " bbbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "ddddddddddddddddddd ",
+            "                    ",
+            " ddddddddddddddddddd",
+            "                    ",
+            "bbbbbbbbbbbbbbbbbbb ",
+            "                    ",
+            " bbbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbbbbbb ",
+            "                    ",
+            " bbbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbbbbbb ",
+            "                    ",
+            " bbbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbbbbbb ",
+            "                    ",
+            " ddddddddddddddddddd",
+            "                    ",
+            "                    ",
+            "bb @                ",
+            "bbb                 ",
+            "bbbb                 ",
+        ],
+    },
+    {
+        title: "Up n' Down",
+        map: [
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "        bbbbbbbdbdbd",
+            "bbb    bbbb         ",
+            "bbbb  bbbbb bbbbbbbb",
+            "bbbbb     b         ",
+            "bbbbbbb   bbbbb     ",
+            "bbbbbbbb  bbbbbbb   ",
+            "b        bb       bb",
+            "bb      bbb      bbb",
+            "bbb    bbbb    bbbbb",
+            "bbbb      b         ",
+            "      bbbbbbbbb     ",
+            "     bbbbbbbbbbb    ",
+            "    bbbbbbbbbbbbb   ",
+            "b  bbbbbbbbbbbbbbb  ",
+            "bb        b        b",
+            "bbb       b       bb",
+            "bbbb p    b @   bbbb",
+            "bbbbbbbbbbbbbbbbbbbb",
+        ],
+        messages: [["What goes up, must come down.", 250, 250]],
+    },
+    {
+        title: "Run!",
+        map: [
+            "                   e",
+            " dddddddddddddbbbbbb",
+            "p                   ",
+            "bbbbddddddddddddddd ",
+            "                    ",
+            " dddddddddddddddddbb",
+            "                    ",
+            "bbbbbdddddddddddddd ",
+            "                    ",
+            " ddddddddddddddddbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbbbb   ",
+            "bbbbbbbbbbbbbbbbbbb@",
+            "bbbbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+        ],
+        
+        messages: [
+            ["You better run, bucko.", 200, 65],    
+        ],
+    },
+    {
+        title: "More enemies",
+        map: [
+            "  b  E        b     ",
+            "  bbbbbbbbbdddb     ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "           p        ",
+            "dbbbbbbbbbbbbbbbbbdd",
+            "                    ",
+            "bbbbbbbbbbbbbbbbbddd",
+            "                    ",
+            "dddbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "                    ",
+            "bbbbbbbbbbbbbb      ",
+            "bbbbbbbbbbbbbbbb    ",
+            "bbbbbbbbbbbbbbbbb   ",
+            "                    ",
+            "       bbbbbbbbbbbbb",
+            "     bbbbbbbbbbbbbbb",
+            "   bbbbbbbbbbbbbbbbb",
+            "  bbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "                    ",
+            "bbbbbbbbbbbb        ",
+            "bbbbbbb bbbb       ",
+            "@                   ",
+            "bbbb   b   bbbblllbb",
+            "bbbbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "                    ",
+            "                    ",
+        ],
+    },
+    {
+        title: "Ledges",
+        map: [
+            "                    ",
+            " p                  ",
+            "bbbbbbb          e ",
+            "bbbbbbbb       bbbbb",
+            "b          bbbbbbbbb",
+            "bb   b              ",
+            "bblllbbbbbb         ",
+            "bbbbbbbbbbbbbbb     ",
+            "e                   ",
+            "bbb            bbblb",
+            "bbbbbbb    bbbbbbbbb",
+            "                    ",
+            "                    ",
+            "bbbbbbb    ddddddddd",
+            "          dddddddddd",
+            "                    ",
+            "   bbb          ddd ",
+            "                    ",
+            "  ddddd  bbb        ",
+            "                    ",
+            "   bbbbbb           ",
+            "               ddddd",
+            "   ddd         d  E ",
+            "               d    ",
+            "       bbbbbbbbbbbbb",
+            "                    ",
+            "       b           @",
+            "      bbb         bb",
+            "   bbbbbbb     bbbbb",
+            "bbbbbbbbbbbbbbbbbbbb",
+        ],
+    },
+    {
+        title: "Wild",
+        map: [
+            "p                   ",
+            "bbbbbbbbbbbbbbb     ",
+            "                    ",
+            "           ddddddddd",
+            "dddddd   ddddddddddd",
+            "ddddddd             ",
+            "                    ",
+            "       ddddd  dlllld",
+            "              dbbbbd",
+            "dddddd              ",
+            "dddddddd            ",
+            "                    ",
+            "                    ",
+            "           ddddddddd",
+            "         ddddddddddd",
+            "                    ",
+            "ddddddd             ",
+            "ddddddddddd         ",
+            "                    ",
+            "           ddddddddd",
+            "                    ",
+            "                    ",
+            "                    ",
+            "              dlllll",
+            "              dbbbbb",
+            " ddddddd          @ ",
+            "                    ",
+            "       ddddd        ",
+            "             ddd    ",
+            "                    ",
+        ],
+        
+        messages: [
+            ["Don't expect any support.", 100, 0],
+            
+        ],
+    },    
+    {
+        title: "Simplistic",
+        map: [
+            "                    ",
+            "                    ",
+            "                    ",
+            " @       e          ",
+            "bbbbbbbbbbb         ",
+            "bbbbbbbbbbbbb       ",
+            "                    ",
+            "           bbbbbbbbb",
+            "         bbbbbbbbbbb",
+            "       bbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbb       ",
+            "bbbbbbbbbbbbbbb     ",
+            "                    ",
+            "            bbbbbbbb",
+            "           bbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbb     ",
+            "bbbbbbbbbbbbbbbbb   ",
+            "                    ",
+            "                 bbb",
+            "                bbbb",
+            "             ddbbbbb",
+            "           bdddbbbbbb",
+            "    bbbbbbbbdddbbbbbb",
+            "bbb                 ",
+            "bbbbbbb             ",
+            "bbbbbbbbbb     b    ",
+            "bbbbbbbbbbbllllb   p",
+            "bbbbbbbbbbbbbbbbbbbbb",
+        ],
+        messages:[ 
+            ["A fairly easy level.", 400, 650],
+            ["Tip: Enemies die in lava.", 175, 375],
+        ],
+    },
+    {
+        title: "=)",
+        map: [
+            "        p           ",
+            "        b           ",
+            "                    ",
+            "     d      d       ",
+            "     d      d       ",
+            "     d      d       ",
+            "     d      d       ",
+            "                    ",
+            "   d           d     ",
+            "   d          d     ",
+            "    dd       d       ",
+            "      dddddddd       ",
+            "                   @",
+            "                   b",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "       E   E        ",
+            "                    ",
+            "bbbbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+        ],
+    },
+    {
+        title: "Mountain in the Sky",
+        map: [
+            "         p          ",
+            "        bbb         ",
+            "       bbbbb        ",
+            "      bbbbbbb       ",
+            "     bbbbbbbbb      ",
+            "     bbbbbbbbb      ",
+            "    bbbbbbbbbbb     ",
+            "  bbbbbbbbbbbbbbb   ",
+            "                    ",
+            "d                  d",
+            "dd                dd",
+            " dd              dd ",
+            "  d              d  ",
+            "  dd            dd  ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "   bbbbbbbbbbbbbb   ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "          @         ",
+            "dddddddddddddddddddd",
+        ],
+    },
+    {
+        title: "The Labyrnth",
+        map: [
+            "    p               ",
+            "bbbbbbbbbbbbbbbbb   ",
+            "                    ",
+            " bbbbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbbbb   ",
+            "                    ",
+            " ddddddddddddddddddd",
+            "                    ",
+            "ddddddddddddddddddd ",
+            "                    ",
+            "  dddddddddddddddddd",
+            "                    ",
+            "                    ",
+            "                    ",
+            "bbbbbbb             ",
+            "bbbbbbbbbbb         ",
+            "               bbbbb",
+            "           bbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbb     ",
+            "bbbbbbbbbbbbbbbb    ",
+            "bbbbbbbbbbbbbbbbbb  ",
+            "                    ",
+            "                    ",
+            "       bbbbbbbbbbbbb",
+            "      bbbbbbbbbbbbbb",
+            "    bbbbbbbbbbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbbbbbbbbbd",
+            "                 d  ",
+            "  d              d  ",
+            "  d           E  d  ",
+            "dddbbbbbbbbbbbbbbb  ",
+            "                    ",
+            "bbbbbbb             ",
+            "bbbbbbbbbbb         ",
+            "             bbbbbbb",
+            "           bbbbbbbbb",
+            "                    ",
+            "bbbbbbbbbbbb        ",
+            "bbbbbbbbbbbbbbb     ",
+            "                    ",
+            "           bbbbbbbbb",
+            "         bbbbbbbbbbb",
+            "     bbbbb   @      ",
+            "bbb      b bbb      ",
+            "        bb   bbb    ",
+            "      bbbb          ",
+            "         bdddd  dddd",
+            "bbbbb    b          ",
+            "bbbbbb   b          ",
+            "         b     bbbbb",
+            "   bbbbbbb          ",
+            "  bbbbbbbbbbbbb     ",
+            "         bbbbbbbb bb",
+            "bbbbbbbb b          ",
+            "         b  bbbbbbbb",
+            "           bbbbbbbbb",
+            "bbbbbbbbbbbbbbbbbbbb",
+        ],
+    },
+    {
+        title: "Au Revoir",
+        map: [
+            "p                   ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                    ",
+            "                   @",
+            "bbbbbbbbbbbbbbbbbbbb",
+        ],
+        messages: [
+            ["This is the final level! Congragulations!", 250, 650],    
+        ],
+    },
+];
+
+var level = 0;
+
+var scene = "logo";
+
+var transition = function(goTo) {
+    this.goTo = goTo;
+    this.opacity = 0;
+};
+
+transition.prototype.run = function() {
+    noStroke();
+    for(var i = 0; i < width/100; i ++) {
+        fill(255, this.opacity * (i+1));
+        rect(i * 100, 0, 100, height);
+    }
+    stroke(255);
+    
+    if(this.goTo !== scene) {
+        this.opacity = lerp(this.opacity, 255, 0.1);
+        
+        if(this.opacity > 254) {
+            scene = this.goTo;
+        }
+        
+    } else {
+        this.opacity = lerp(this.opacity, 0, 0.1);
+    }
+};
+
+var trans = new transition("logo");
+
+var portal = {
+    x: 0,
+    y: 0,
+    w: 20,
+    h: 20,
+    draw: function() {
+        fill(255, 155 + sin(frameCount) * 100);
+        stroke(255, 155 + sin(frameCount) * 100);
+        rect(this.x, this.y, this.w, this.h);
+        stroke(255);
+        
+        if(collide(this, Player)) {
+            if(level < levels.length-1) {
+                level ++;
+                scene = 'l';
+                trans = new transition("game");
+            } else {
+                trans = new transition("win");
+            }
+            loadLevel();
+        }
+    },
+};
+
+var loadLevel = function() {
+    blocks = [];
+    particles = [];
+    enemies = [];
+    
+    var levelMap = levels[level].map;
+    
+    for(var i = 0; i < levelMap.length; i ++) {
+        for(var j = 0; j < levelMap.length; j ++) {
+            if(levelMap[i][j] !== ' ') {
+                if(levelMap[i][j] === 'b') {
+                    blocks.push(new block(j * blockSize, i * blockSize));
+                } else if(levelMap[i][j] === 'p') {
+                    Player = new player(j * blockSize, i * blockSize);
+                } else if(levelMap[i][j] === '@') {
+                    portal.x = j * blockSize;
+                    portal.y = i * blockSize;
+                } else if(levelMap[i][j] === 'l') {
+                    blocks.push(new block(j * blockSize, i * blockSize, "lava"));
+                } else if(levelMap[i][j] === 'd') {
+                    blocks.push(new block(j * blockSize, i * blockSize, "trick"));
+                } else if(levelMap[i][j] === 'e') {
+                    enemies.push(new enemy(j * blockSize, i * blockSize));
+                } else if(levelMap[i][j] === 'E') {
+                    for(var n = 0; n < 10; n ++) {
+                        enemies.push(new enemy(j * blockSize, i * blockSize));
+                    }
+                }
+            }
+        }
+    }
+};
+
+loadLevel();
+
+var camY = 0;
+
+textAlign(CENTER, CENTER);
+
+var button = {
+    mouseOver: false,
+    wiggle: 0,
+};
+
+
+draw = function() {
+    cursor();
+    switch(scene) {
+        case "game":
+            runTimer();
+            textFont(createFont("Tahoma"));
+            
+            camY = lerp(camY, height/2 - Player.y, 0.1);
+            
+            image(backgroundImg, 0, 0);
+            
+            pushMatrix();
+            translate(0, camY);
+            for(var i in blocks) {
+                blocks[i].draw();
+            }
+            
+            for(var i = particles.length-1; i >= 0; i --) {
+                particles[i].draw();
+                var c = false;
+                for(var j = blocks.length-1; j >= 0; --j) {
+                    if(blocks[j].type !== "lava" && collide({x:particles[i].x, y:particles[i].y, w: particles[i].s, h:particles[i].s}, blocks[j])) {
+                        c = true;
+        
+                    }
+                }
+                if(particles[i].life <= 0 || c) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+            }
+            
+            for(var i = enemies.length-1; i >= 0; i --) {
+                enemies[i].draw();
+                enemies[i].update();
+                enemies[i].x = constrain(enemies[i].x, 0, width - enemies[i].w);
+                if(enemies[i].dead) {
+                    for(var j = 0; j < 36; j ++) {
+                        particles.push(new particle(enemies[i].x, enemies[i].y, j * 10));
+                    }
+                    enemies.splice(i, 1);
+                    continue;
+                }
+            }
+            
+            Player.draw();
+            Player.update();
+            
+            if(levels[level].messages !== undefined) {
+                var msgs = levels[level].messages;
+                for(var i in msgs) {
+                    var msg = msgs[i][0];
+                    
+                    textSize(14);
+                    fill(255);
+                    text(msg, msgs[i][1], msgs[i][2]);
+                }
+            }
+            portal.draw();
+            
+            popMatrix();
+            
+            fill(255);
+            stroke(ORANGE);
+            rect(-1, -1, width + 1, 76);
+            textSize(35);
+            fill(ORANGE);
+            text("#"+(level+1)+" "+levels[level].title, 250, 30);
+            textSize(15);
+            text("Deaths: "+deaths+" | "+timer, 250, 60);
+            stroke(255);
+            
+            if(Player.y - 40 > height - camY) {
+                loadLevel();
+                deaths ++;
+            }
+            
+            Player.x = constrain(Player.x, 1, -1 + width - Player.w);
+            
+            
+            break;
+        case "menu":
+            textFont(createFont("Trebuchet MS"), 50);
+            image(backgroundImg, 0, 0);
+            
+            fill(255);
+            rect(0, 0, width, 100);
+            rect(0, 0, 150, height);
+            fill(ORANGE);
+            text("V E R T I K A L", width/2, 45);
+            textSize(20);
+            text("a platformer", width/2, 80);
+
+            textSize(45);
+            var txt = "PLAY";
+            for(var i = 0; i < txt.length; i ++) {
+                text(txt[i], 75 + sin(1 + frameCount * i) * button.wiggle, 155 + i * 45);
+            }
+            
+            if(button.mouseOver) {
+                cursor(HAND);
+                button.wiggle = lerp(button.wiggle, 5, 0.1);
+                
+                if(mouseIsPressed && trans.goTo !== "game") {
+                    trans = new transition("game");
+                }
+                
+            } else {
+                button.wiggle = lerp(button.wiggle, 0, 0.1);
+            }
+            
+            button.mouseOver = mouseX < 150;
+            
+            pushMatrix();
+            translate(125, 100);
+            scale(0.8);
+            for(var i in blocks) {
+                blocks[i].draw();
+            }
+            
+            popMatrix();
+            
+            break;
+        case "win":
+            image(backgroundImg, 0, 0);
+            textFont(createFont("Trebuchet MS Bold"), 75);
+            fill(255);
+            rect(0, 0, width, 100);
+            fill(ORANGE);
+            text("YOU WIN!", 250, 55);
+            textFont(createFont("Trebuchet MS"), 35);
+            fill(255);
+            text("Deaths: "+deaths+" | Time: "+timer, 250, 200);
+            break;
+        case "logo":
+            image(backgroundImg, 0, 0);
+            
+            textFont(createFont("Calibri"), 45);
+            
+            fill(255);
+            text("Johnathan Wintres".substring(frameCount/5, 0), width/2, height/2);
+            textSize(35);
+            text("Presents".substring(-"Johnathan Wintres".length + frameCount/5, 0), width/2, 250);
+            if(frameCount > 150) {
+                scene = '';
+                trans = new transition("menu");
+            }
+    }
+    trans.run();
+};
